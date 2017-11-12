@@ -1,6 +1,7 @@
 # arm-cache-sim
 Arm Cache Simulator for Computer Organization and Architecture
 
+```
 +-----------------------------------------------------------+
 |                      #  Trace Files #                     |
 +-----------------------------------------------------------+
@@ -36,4 +37,4 @@ Arm Cache Simulator for Computer Organization and Architecture
 |     comparing cache hit rate. For different trace file,   |
 |     is the best configuration always the same?            |
 +-----------------------------------------------------------+
-
+```
