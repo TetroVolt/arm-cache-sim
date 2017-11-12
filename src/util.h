@@ -67,9 +67,12 @@ int hex2num(char c) {
     return -1;
 }
 
+/**
+ *  hexnum must be a 32 hex number
+ */
 int hex2i32(const string& hexnum) {
     int ret = 0;
-    for (const char& c : hexnum) {
+    for (const char &c : hexnum) {
         ret = ret << 4;
         ret |= hex2num(c);
     }
