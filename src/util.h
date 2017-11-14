@@ -7,20 +7,34 @@ using namespace std;
 
 namespace util {
 
+// returns true if c is between '0' and '9'
 inline bool isDigit(const char c);
 
+// converts a number from 0-15 to hex char
 char num2hex(int c);
 
+// converts a hex char into an integer
 int hex2num(char hexc);
 
+// converts a hex string into an integer
 int hex2i32(const string& hexnum);
 
+// converts an int into a hex string
 string to_hex(int c);
+
+bool is_pow2(unsigned int x);
 
 } // end namespace util
 
 
+
+// implementations
+
 namespace util {
+
+inline bool is_pow2(unsigned int x) {
+    return (x!=0) && !(x & (x-1));
+}
 
 inline bool isDigit(const char c) {
     return '0' <= c && c <= '9';
