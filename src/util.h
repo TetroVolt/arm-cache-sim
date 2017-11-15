@@ -2,8 +2,13 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <cstring>
 #include <string>
 using namespace std;
+
+#ifndef u32
+    #define u32 unsigned int
+#endif
 
 namespace util {
 
@@ -36,9 +41,40 @@ inline bool is_pow2(unsigned int x) {
     return (x!=0) && !(x & (x-1));
 }
 
+inline u32 log2(u32 x) {
+    u32 ret = 0;
+    while (x >>= 1) ret++;
+    return ret;
+}
+
 inline bool isDigit(const char c) {
     return '0' <= c && c <= '9';
 }
+
+// meant for primitives
+template<typename T>
+void print_bin(T t) {
+    unsigned long u64 = 0x00;
+    memcpy(&u64, &t, sizeof(T));
+    char buff[sizeof(T) * 8 + 1];
+    buff[sizeof(T) * 8] = '\0';
+    for (size_t bit = 0; bit < sizeof(T) * 8; bit++) {
+        buff[sizeof(T) * 8 - 1 - bit] = '0' + (u64 & 1);
+        u64 >>= 1;
+    }
+    //cout << buff;
+    for (size_t byte = 0; byte < sizeof(T); byte++) {
+        for (char bit = 0; bit < 8; bit++) {
+            cout << buff[byte*8 + bit];
+        }
+        if ((byte < sizeof(T) - 1)) cout << " ";
+    }
+    cout << endl;
+}
+
+
+
+
 
 char num2hex(int c) {
     if (0 <= c && c <= 9) return c + '0';
