@@ -31,5 +31,7 @@
 *.out
 *.app
 out/*
-makefile
+#makefile
 
+# for vim
+*.swp

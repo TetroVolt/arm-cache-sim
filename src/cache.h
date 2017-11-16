@@ -83,21 +83,74 @@ public:
         }
     }
 
+    /** For LRU
+     * ages every cacheline's age 
+     */
     inline void age_group(CacheLine * group) {
         for (u32 i = 0; i < n_way; ++i) {
-            group[i].meta++;
+            group[i].meta++; // is wrong not correct
         }
+    }
+
+    /** find(@addr, @group, @index)
+     *  returns: bool if addr is in this cache
+     *
+     *  behavior:
+     *  if the @addr is contained in the cache, 
+     *  this function sets @group to the group line
+     *  and sets index to the index of the cache line
+     *  in that group
+     *
+     *  if @addr is not in the cache, it sets index
+     *  to the index of the cacheline which is oldest
+     *  for LRU replacement
+     *
+     *  to access the cacheline -> group[index]
+     */
+    bool find(u32 addr, Cache * &group, u32 &index) {
+        group = groups[(addr & assoc_mask) >> assoc_shift];
+        u32 oldest = 0;
+        for (u32 p, p < n_way; p++) {
+            if (addr & tag_mask == group[p].meta & tag_mask) {
+                index = p;
+                return true;
+            }
+
+            // simultaneously find oldest index for lru
+            if ( ((group[p].meta & (~tag_mask)) >> 1) >
+                 ((group[oldest].meta & (~tag_mask)) >> 1)) {
+                oldest = p;
+            }
+        }
+        index = oldest;
+        return false;
     }
 
     void store(u32 addr, char value) {
         //TO-DO
-        
+        CacheLine * group;
+        u32 index;
+        if (find(addr, group, index)) {
+            // cache hit
+            group[index][addr & byte_mask] = value;
+            group[index].meta |= 1; // update dirty bit
+        } else {
+            // cache miss
+            // have to write whats in cache into memory first
+            // then copy proper block from memory at this address
+            // into this cache, then write value into this cache line
+            
+        }
     }
 
     char load(u32 addr) {
         //TO-DO
-
+        
         return 0;
+    }
+
+    void write() {
+    
     }
 };
 
