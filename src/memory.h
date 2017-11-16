@@ -26,6 +26,7 @@ struct Memory {
         assert(addr < size);
         return data[addr];
     }
+
 };
 
 #endif

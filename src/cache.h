@@ -3,12 +3,15 @@
 #define CACHE_H
 
 #include "util.h"
+#include "memory.h"
 using namespace std;
 
 struct CacheLine {
     u32 data_size = 0;
-    u32 meta = 0; // meta data, contains tag data, remaining bits used for
-                  // replacement policy
+    u32 meta = 0;
+        // this meta data contains meta data
+        // [tag][age][dirty bit]
+        // TO-DO implement proper masks and shifts
     char * data = nullptr;
 
     CacheLine() {}
@@ -20,11 +23,12 @@ protected:
     u32 num_groups; // number of associative groups
     u32 n_way;      // number of lines per group
     CacheLine ** groups; // 2D array memory
+    Memory * ram;
 
+    // helper masks and shifts
     u32 byte_mask;  // for index of individual byte per cache line in group
     u32 assoc_mask; // for index of group in groups
     u32 tag_mask;   // for tag comparison
-
     u32 assoc_shift;
 
 public:
@@ -35,7 +39,7 @@ public:
      *  @param n_way        set associativity
      */
     explicit
-    Cache(u32 cache_size, u32 line_size, u32 n_way) {
+    Cache(u32 cache_size, u32 line_size, u32 n_way, u32 ram_size) {
         if ( !util::is_pow2(cache_size)
              || !util::is_pow2(cache_size)
              || !util::is_pow2(n_way) ) {
@@ -69,6 +73,7 @@ public:
         assoc_shift = util::log2(line_size);
         tag_mask    = ~(byte_mask | assoc_mask);
 
+        ram = new Memory(ram_size);
     }
 
     ~Cache() {
@@ -86,10 +91,12 @@ public:
 
     void store(u32 addr, char value) {
         //TO-DO
+        
     }
 
     char load(u32 addr) {
         //TO-DO
+
         return 0;
     }
 };
