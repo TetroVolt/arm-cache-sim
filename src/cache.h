@@ -8,14 +8,16 @@
 using namespace std;
 
 struct CacheBlock {
+    char * data = nullptr;
     u32 data_size = 0;
     u32 meta = 0;
         // this meta data contains meta data
-        // [tag][age][dirty bit]
+        // [tag bits][n_way age][dirty bit]
         // TO-DO implement proper masks and shifts
-    char * data = nullptr;
+        // Currently flawed
+        // 32 bits not guaranteed to fit all meta data
 
-    CacheBlock() {}
+    CacheBlock() {} // constructor
     ~CacheBlock() { if (data) delete[] data; }
 
     char& operator [](u32 index) {
@@ -26,18 +28,19 @@ struct CacheBlock {
 
 class Cache {
 protected:
-    u32 num_sets; // number of associative sets
-    u32 n_way;      // number of blocks per set
-    CacheBlock ** sets; // 2D array memory
-    Memory * ram;
+    u32 num_sets;       // number of associative sets
+    u32 n_way;          // number of blocks per set
+    CacheBlock ** sets; // 2D array cache
+    Memory * ram;       // Main Memory
 
     // helper masks and shifts
-    u32 byte_mask;  // for index of individual byte per cache block in set
-    u32 assoc_mask; // for index of set in sets
-    u32 tag_mask;   // for tag comparison
-    u32 assoc_shift;
+    u32 byte_mask;   // for index of individual byte per cache block in set
+    u32 assoc_mask;  // for index of set in sets
+    u32 tag_mask;    // for tag comparison
+    u32 assoc_shift; // amount to shift for assoc bits
 
-    bool write_back;
+    // policies
+    bool write_back; // write policy
 
 public:
     /**
@@ -84,6 +87,7 @@ public:
         ram = new Memory(ram_size);
     }
 
+    // destructor
     ~Cache() {
         if (sets) {
             for (; --num_sets >= 0; delete[] sets[num_sets]);
@@ -140,6 +144,9 @@ public:
         return false;
     }
 
+    /**
+     *
+     */
     void store_byte(u32 &reg, u32 addr) {
         //TO-DO
         CacheBlock * set;
@@ -197,13 +204,13 @@ protected:
      */
     void fetch_block_from_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
-        block->meta = 0;                  // clear block
+        block->meta = 0;                  // clear block meta
         block->meta |= (addr & tag_mask); // put new tag
 
         addr &= (~byte_mask);  // change addr to where the block starts
 
         for (u32 p = 0; p <= byte_mask; ++p) {
-            (*block)[p] = (*ram)[addr + p];  // copy values
+            (*block)[p] = (*ram)[addr + p]; // copy ram into cache
         }
     }
 
@@ -216,7 +223,7 @@ protected:
         addr &= (~byte_mask);   // change addr to where the block starts
 
         for (u32 p = 0; p <= byte_mask; ++p ) {
-            (*ram)[addr+p] = (*block)[p];
+            (*ram)[addr+p] = (*block)[p]; // copy cache into ram
         }
     }
 };
