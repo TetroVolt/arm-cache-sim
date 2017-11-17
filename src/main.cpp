@@ -1,14 +1,15 @@
 
 #include <iostream>
+#include "cache.h"
 #include "memory.h"
 #include "util.h"
 using namespace std;
 
-int main(int argc, char ** argv) {
-    u32 line_size = 8;
-    u32 n_way = 8;
+void test_cache_math() {
     u32 cache_size = 32 * 1024;
-    
+    u32 line_size = 4;
+    u32 n_way = 32;
+
     u32 num_groups = cache_size / n_way / line_size;
 
     u32 byte_mask   = line_size - 1;
@@ -29,9 +30,12 @@ int main(int argc, char ** argv) {
     cout << "Binary tag_mask   : ";
     util::print_bin(tag_mask);
 
-    cout << "Binary a_mask >>  : ";
+    cout << "a_mask >> a_shift : ";
     util::print_bin(assoc_mask >> assoc_shift);
+}
 
+int main(int argc, char ** argv) {
+    test_cache_math();
     return 0;
 }
 

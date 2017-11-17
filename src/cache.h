@@ -2,11 +2,12 @@
 #ifndef CACHE_H
 #define CACHE_H
 
+#include <assert.h>
 #include "util.h"
 #include "memory.h"
 using namespace std;
 
-struct CacheLine {
+struct CacheBlock {
     u32 data_size = 0;
     u32 meta = 0;
         // this meta data contains meta data
@@ -14,143 +15,209 @@ struct CacheLine {
         // TO-DO implement proper masks and shifts
     char * data = nullptr;
 
-    CacheLine() {}
-    ~CacheLine() { if (data) delete[] data; }
+    CacheBlock() {}
+    ~CacheBlock() { if (data) delete[] data; }
+
+    char& operator [](u32 index) {
+        assert(index < data_size);
+        return data[index];
+    }
 };
 
 class Cache {
 protected:
-    u32 num_groups; // number of associative groups
-    u32 n_way;      // number of lines per group
-    CacheLine ** groups; // 2D array memory
+    u32 num_sets; // number of associative sets
+    u32 n_way;      // number of blocks per set
+    CacheBlock ** sets; // 2D array memory
     Memory * ram;
 
     // helper masks and shifts
-    u32 byte_mask;  // for index of individual byte per cache line in group
-    u32 assoc_mask; // for index of group in groups
+    u32 byte_mask;  // for index of individual byte per cache block in set
+    u32 assoc_mask; // for index of set in sets
     u32 tag_mask;   // for tag comparison
     u32 assoc_shift;
+
+    bool write_back;
 
 public:
     /**
      * Constructor
      *  @param cache_size   size in bytes of the cache
-     *  @param line_size    size of each cache line
-     *  @param n_way        set associativity
+     *  @param block_size    size of each cache block: number of bytes per block
+     *  @param n_way        set associativity: blocks per set
      */
     explicit
-    Cache(u32 cache_size, u32 line_size, u32 n_way, u32 ram_size) {
+    Cache(u32 cache_size, u32 block_size, u32 n_way, u32 ram_size) {
         if ( !util::is_pow2(cache_size)
              || !util::is_pow2(cache_size)
              || !util::is_pow2(n_way) ) {
-            cerr << "ERROR! cache_size and line_size must be a power of 2!"
+            cerr << "ERROR! cache_size and block_size must be a power of 2!"
                  << endl;
             throw std::exception();
         }
 
-        if (cache_size < (line_size * n_way)) {
+        if (cache_size < (block_size * n_way)) {
             cerr << "Invalid ratio of parameters: "
                  << "cache_size : " << cache_size << endl
-                 << "line_size  : " << line_size << endl
+                 << "block_size  : " << block_size << endl
                  << "n_way      : " << n_way << endl;
             throw std::exception();
         }
 
-        num_groups = cache_size / line_size / n_way;
-        groups = new CacheLine*[num_groups];
+        num_sets = cache_size / block_size / n_way;
+        sets = new CacheBlock*[num_sets];
 
         // initialize array
-        for (u32 i = 0; i < num_groups; i++) {
-            groups[i] = new CacheLine[n_way];
+        for (u32 i = 0; i < num_sets; i++) {
+            sets[i] = new CacheBlock[n_way];
             for (u32 j = 0; j < n_way; j++) {
-                groups[i][j].data_size = line_size;
-                groups[i][j].data = new char[line_size];
+                sets[i][j].data_size = block_size;
+                sets[i][j].data = new char[block_size];
             }
         }
 
-        byte_mask   = line_size - 1;
-        assoc_mask  = (num_groups - 1) << util::log2(line_size);
-        assoc_shift = util::log2(line_size);
+        byte_mask   = block_size - 1;
+        assoc_mask  = (num_sets - 1) << util::log2(block_size);
+        assoc_shift = util::log2(block_size);
         tag_mask    = ~(byte_mask | assoc_mask);
 
         ram = new Memory(ram_size);
     }
 
     ~Cache() {
-        if (groups) {
-            for (; --num_groups >= 0; delete[] groups[num_groups]);
-            delete[] groups;
+        if (sets) {
+            for (; --num_sets >= 0; delete[] sets[num_sets]);
+            delete[] sets;
         }
     }
 
     /** For LRU
-     * ages every cacheline's age 
+     * ages every cacheblock's age 
      */
-    inline void age_group(CacheLine * group) {
-        for (u32 i = 0; i < n_way; ++i) {
-            group[i].meta++; // is wrong not correct
-        }
+    void age_set(CacheBlock * set) {
+        //TO-DO
+        //NEEDS TO BE IMPLEMENTED AND CALLED FOR STORE AND LOAD
+        //META IS FLAWED, NEED MORE BITS THAN 32-TAG FOR AGES
     }
 
-    /** find(@addr, @group, @index)
+    /** find(@addr, @set, @index)
      *  returns: bool if addr is in this cache
      *
      *  behavior:
      *  if the @addr is contained in the cache, 
-     *  this function sets @group to the group line
-     *  and sets index to the index of the cache line
-     *  in that group
+     *  this function sets @set to the set block
+     *  and sets index to the index of the cache block
+     *  in that set
      *
      *  if @addr is not in the cache, it sets index
-     *  to the index of the cacheline which is oldest
+     *  to the index of the cacheblock which is oldest
      *  for LRU replacement
      *
-     *  to access the cacheline -> group[index]
+     *  to access the cacheblock -> set[index]
      */
-    bool find(u32 addr, Cache * &group, u32 &index) {
-        group = groups[(addr & assoc_mask) >> assoc_shift];
+    bool find_in_cache(u32 addr, CacheBlock * &set, u32 &index) {
+        set = sets[(addr & assoc_mask) >> assoc_shift];
         u32 oldest = 0;
-        for (u32 p, p < n_way; p++) {
-            if (addr & tag_mask == group[p].meta & tag_mask) {
+        for (u32 p = 0; p < n_way; p++) {
+            if ( (addr & tag_mask) == (set[p].meta & tag_mask) ) {
                 index = p;
                 return true;
             }
 
             // simultaneously find oldest index for lru
-            if ( ((group[p].meta & (~tag_mask)) >> 1) >
-                 ((group[oldest].meta & (~tag_mask)) >> 1)) {
+            if ( ((set[p].meta & (~tag_mask)) >> 1) >
+                 ((set[oldest].meta & (~tag_mask)) >> 1)) {
                 oldest = p;
             }
         }
+        // replace this block
+
         index = oldest;
+        if (write_back && (set[oldest].meta & 1)) {
+            write_block_to_memory(set, addr);
+        }
+        fetch_block_from_memory(set, addr);
         return false;
     }
 
-    void store(u32 addr, char value) {
+    void store_byte(u32 &reg, u32 addr) {
         //TO-DO
-        CacheLine * group;
+        CacheBlock * set;
         u32 index;
-        if (find(addr, group, index)) {
-            // cache hit
-            group[index][addr & byte_mask] = value;
-            group[index].meta |= 1; // update dirty bit
+        find_in_cache(addr, set, index);
+        set[index][addr & byte_mask] = reg;
+        set[index].meta &= (tag_mask | 1); // set age = 0
+    }
+
+    void load_byte(u32 &reg, u32 addr) {
+        //TO-DO
+        CacheBlock * set;
+        u32 index;
+        find_in_cache(addr, set, index);
+        reg = set[index][addr & byte_mask]; // move byte
+        reg |= (set[index][0] & 0x80) ? 0xFFFFFF00:0; // perform sign extend
+        set[index].meta &= (tag_mask | 1);  // set age = 0
+    }
+
+    void load_unsigned_byte(u32 &reg, u32 addr) {
+        //TO-DO
+        CacheBlock * set;
+        u32 index;
+        find_in_cache(addr, set, index);
+        reg = set[index][addr & byte_mask]; // move byte
+        set[index].meta &= (tag_mask | 1);  // set age = 0
+    }
+
+    void store_word(u32 &reg, u32 addr) {
+        assert(!(addr & byte_mask)); // check if word aligned
+        CacheBlock *set;
+        u32 index;
+        find_in_cache(addr, set, index);
+        *((u32*)(set[index].data)) = reg;
+        if (write_back) {
+            set[index].meta |= 1; // set dirty bit = 1
         } else {
-            // cache miss
-            // have to write whats in cache into memory first
-            // then copy proper block from memory at this address
-            // into this cache, then write value into this cache line
-            
+            (*ram)[addr] = reg;   // write-through
         }
     }
 
-    char load(u32 addr) {
-        //TO-DO
-        
-        return 0;
+    void load_word(u32 &reg, u32 addr) {
+        assert(!(addr & byte_mask)); // check if word aligned
+        CacheBlock *set;
+        u32 index;
+        find_in_cache(addr, set, index);
+        reg = *((u32*)(set[index].data));
+        set[index].meta &= (tag_mask | 1); // set age = 0
     }
 
-    void write() {
-    
+protected:
+    /**
+     * copies a block of memory from ram into this cache block
+     * will update the tag bits, dirty bit and age for lru
+     */
+    void fetch_block_from_memory(CacheBlock *block, u32 addr) {
+        assert(block != nullptr);
+        block->meta = 0;                  // clear block
+        block->meta |= (addr & tag_mask); // put new tag
+
+        addr &= (~byte_mask);  // change addr to where the block starts
+
+        for (u32 p = 0; p <= byte_mask; ++p) {
+            (*block)[p] = (*ram)[addr + p];  // copy values
+        }
+    }
+
+    /**
+     * copies a data in cache block into block of memory
+     */
+    void write_block_to_memory(CacheBlock *block, u32 addr) {
+        assert(block != nullptr);
+        block->meta &= -2;      // set dirty bit to 0
+        addr &= (~byte_mask);   // change addr to where the block starts
+
+        for (u32 p = 0; p <= byte_mask; ++p ) {
+            (*ram)[addr+p] = (*block)[p];
+        }
     }
 };
 
