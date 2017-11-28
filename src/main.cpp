@@ -16,7 +16,7 @@ int main(int argc, char ** argv) {
 }
 
 void cache_test() {
-    Cache cache(32, 4, 2, 64);
+    Cache cache(32 * 1024, 32, 2, 64 * 1024);
     cache.print_cache();
 }
 
