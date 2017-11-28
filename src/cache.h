@@ -25,8 +25,13 @@ struct CacheBlock {
         assert(index < data_size);
         return data[index];
     }
+
 };
 
+ostream& operator << (ostream& os, const CacheBlock& blk) {
+    os << "{ tag: " << blk.tag << ", dirty: " << blk.dirty << "}";
+    return os;
+}
 
 class Cache {
 protected:
@@ -71,7 +76,8 @@ public:
             throw std::exception();
         }
 
-        num_sets = cache_size / block_size / n_way;
+        num_sets = cache_size / (n_way * block_size);
+        this->n_way = n_way;
         sets = new CacheBlock*[num_sets];
 
         // initialize array
@@ -92,14 +98,52 @@ public:
         fifo_ind = new u32[num_sets](); // initialize to zeros
     }
 
+    void print_cache() {
+        // TO-DO
+        cout << "num_sets = " << num_sets << endl;
+        cout << "n_way    = " << n_way    << endl;
+        for (u32 s = 0; s < num_sets; s++) {
+            cout << "Set[" << s << "] {" << endl;
+            for (u32 n = 0; n < n_way; n++) {
+                cout << "    " << sets[s][n] << endl;
+            }
+            cout << "}" << endl;
+        }
+    }
+
+
     // destructor
     ~Cache() {
         if (sets) {
-            for (; --num_sets >= 0; delete[] sets[num_sets]);
+            for (u32 s = 0; s < num_sets; s++) {
+                delete[] sets[s];
+            }
             delete[] sets;
         }
     }
 
+    /**
+     *
+     */
+    void store_byte(u32 &reg, u32 addr) {
+        //TO-DO
+        CacheBlock * set;
+        u32 index;
+        find_in_cache(addr, set, index);
+        set[index][addr & byte_mask] = reg;
+        set[index].age = 0;
+    }
+
+    void load_byte(u32 &reg, u32 addr) {
+        //TO-DO
+        CacheBlock * set;
+        u32 index;
+        find_in_cache(addr, set, index);
+        reg = set[index][addr & byte_mask]; // move byte
+        set[index].age = 0;
+    }
+
+protected:
     /** For LRU
      *  ages every cacheblock's age 
      */
@@ -159,64 +203,7 @@ public:
         return false;
     }
 
-    /**
-     *
-     */
-    void store_byte(u32 &reg, u32 addr) {
-        //TO-DO
-        CacheBlock * set;
-        u32 index;
-        find_in_cache(addr, set, index);
-        set[index][addr & byte_mask] = reg;
-        set[index].age = 0;
-    }
 
-    void load_byte(u32 &reg, u32 addr) {
-        //TO-DO
-        CacheBlock * set;
-        u32 index;
-        find_in_cache(addr, set, index);
-        reg = set[index][addr & byte_mask]; // move byte
-        reg |= (set[index][0] & 0x80) ? 0xFFFFFF00:0; // perform sign extend
-        set[index].age = 0;
-    }
-
-    void load_unsigned_byte(u32 &reg, u32 addr) {
-        //TO-DO
-        CacheBlock * set;
-        u32 index;
-        find_in_cache(addr, set, index);
-        reg = set[index][addr & byte_mask]; // move byte
-        set[index].age = 0;
-    }
-
-    void store_word(u32 &reg, u32 addr) {
-        assert(!(addr & byte_mask)); // check if word aligned
-        CacheBlock *set;
-        u32 index;
-        find_in_cache(addr, set, index);
-        *((u32*)(set[index].data)) = reg;
-        if (write_back) {
-            set[index].dirty = 1; // set dirty bit = 1
-        } else {
-            (*ram)[addr] = reg;   // write-through
-        }
-    }
-
-    void load_word(u32 &reg, u32 addr) {
-        assert(!(addr & byte_mask)); // check if word aligned
-        CacheBlock *set;
-        u32 index;
-        find_in_cache(addr, set, index);
-        reg = *((u32*)(set[index].data));
-        set[index].age = 0; // set age = 0
-    }
-
-    void print_cache() {
-        // TO-DO
-    }
-
-protected:
     /**
      * copies a block of memory from ram into this cache block
      * will update the tag bits, dirty bit and age for lru
