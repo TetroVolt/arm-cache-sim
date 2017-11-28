@@ -5,10 +5,10 @@
 #include "util.h"
 using namespace std;
 
-void test_cache_math() {
-    u32 cache_size = 32 * 1024;
-    u32 line_size = 4;
-    u32 n_way = 32;
+void cache_math(u32 cache_size, u32 line_size, u32 n_way) {
+    //u32 cache_size = 32 * 1024;
+    //u32 line_size = 32;
+    //u32 n_way = 1;
 
     u32 num_groups = cache_size / n_way / line_size;
 
@@ -35,7 +35,18 @@ void test_cache_math() {
 }
 
 int main(int argc, char ** argv) {
-    test_cache_math();
+    u32 cache_size[] = {32 * 1024, 64 * 1024};
+    u32 line_size[] = {32, 64};
+    u32 n_way[] = {1,2};
+
+    for (char i = 0; i < sizeof(cache_size) / sizeof(u32); ++i)
+    for (char j = 0; j < sizeof(line_size) / sizeof(u32); ++j)
+    for (char k = 0; k < sizeof(n_way) / sizeof(u32); ++k)
+    {
+        cout << endl;
+        cache_math(cache_size[i], line_size[j], n_way[k]);
+    }
+
     return 0;
 }
 

@@ -9,22 +9,24 @@ using namespace std;
 
 struct CacheBlock {
     char * data = nullptr;
-    u32 data_size = 0;
-    u32 meta = 0;
-        // this meta data contains meta data
-        // [tag bits][n_way age][dirty bit]
-        // TO-DO implement proper masks and shifts
-        // Currently flawed
-        // 32 bits not guaranteed to fit all meta data
+    u32 data_size = 0;  // length of data array
+    u32 tag = 0;        // for [tag] and [dirty bit], use 1 and -2 for access mask
+    u8 age = 0;         // age or fifo, using char enough for 32 and 64 byte size
+    bool dirty = 0;     // dirty
 
-    CacheBlock() {} // constructor
+    // constructor
+    CacheBlock() {}
+
+    // destructor
     ~CacheBlock() { if (data) delete[] data; }
 
     char& operator [](u32 index) {
+        // access operator
         assert(index < data_size);
         return data[index];
     }
 };
+
 
 class Cache {
 protected:
@@ -32,15 +34,17 @@ protected:
     u32 n_way;          // number of blocks per set
     CacheBlock ** sets; // 2D array cache
     Memory * ram;       // Main Memory
+    u32 * fifo_ind;     // for fifo indexes
 
-    // helper masks and shifts
+    /* helper masks and shifts */
     u32 byte_mask;   // for index of individual byte per cache block in set
     u32 assoc_mask;  // for index of set in sets
     u32 tag_mask;    // for tag comparison
     u32 assoc_shift; // amount to shift for assoc bits
 
-    // policies
-    bool write_back; // write policy
+    /* policies */
+    bool write_back; // write-back or write-through
+    bool LRU;        // LRU or FIFO
 
 public:
     /**
@@ -53,7 +57,7 @@ public:
     Cache(u32 cache_size, u32 block_size, u32 n_way, u32 ram_size) {
         if ( !util::is_pow2(cache_size)
              || !util::is_pow2(cache_size)
-             || !util::is_pow2(n_way) ) {
+             || !util::is_pow2(n_way) )    {
             cerr << "ERROR! cache_size and block_size must be a power of 2!"
                  << endl;
             throw std::exception();
@@ -62,7 +66,7 @@ public:
         if (cache_size < (block_size * n_way)) {
             cerr << "Invalid ratio of parameters: "
                  << "cache_size : " << cache_size << endl
-                 << "block_size  : " << block_size << endl
+                 << "block_size : " << block_size << endl
                  << "n_way      : " << n_way << endl;
             throw std::exception();
         }
@@ -85,6 +89,7 @@ public:
         tag_mask    = ~(byte_mask | assoc_mask);
 
         ram = new Memory(ram_size);
+        fifo_ind = new u32[num_sets](); // initialize to zeros
     }
 
     // destructor
@@ -96,12 +101,20 @@ public:
     }
 
     /** For LRU
-     * ages every cacheblock's age 
+     *  ages every cacheblock's age 
      */
-    void age_set(CacheBlock * set) {
-        //TO-DO
-        //NEEDS TO BE IMPLEMENTED AND CALLED FOR STORE AND LOAD
-        //META IS FLAWED, NEED MORE BITS THAN 32-TAG FOR AGES
+    void update_lru(CacheBlock * set) {
+        for (u32 n = 0; n < n_way; ++n) {
+            set[n].age = MAX(n_way, set[n].age + 1);
+        }
+    }
+
+    /**
+     * For FIFO
+     */
+    inline void update_FIFO(u32 set_num) {
+        assert(set_num < num_sets);
+        fifo_ind[set_num] = (fifo_ind[set_num] + 1) % num_sets;
     }
 
     /** find(@addr, @set, @index)
@@ -120,27 +133,29 @@ public:
      *  to access the cacheblock -> set[index]
      */
     bool find_in_cache(u32 addr, CacheBlock * &set, u32 &index) {
-        set = sets[(addr & assoc_mask) >> assoc_shift];
-        u32 oldest = 0;
+        u32 set_ind = (addr & assoc_mask) >> assoc_shift;
+        set = sets[set_ind];
+
+        index = 0;
         for (u32 p = 0; p < n_way; p++) {
-            if ( (addr & tag_mask) == (set[p].meta & tag_mask) ) {
+            if ( (addr & tag_mask) == (set[p].tag & tag_mask) ) {
                 index = p;
                 return true;
             }
 
-            // simultaneously find oldest index for lru
-            if ( ((set[p].meta & (~tag_mask)) >> 1) >
-                 ((set[oldest].meta & (~tag_mask)) >> 1)) {
-                oldest = p;
+            if (set[p].age > set[index].age) {
+                index = p;
             }
         }
-        // replace this block
 
-        index = oldest;
-        if (write_back && (set[oldest].meta & 1)) {
-            write_block_to_memory(set, addr);
+        index = (LRU) ? index : fifo_ind[set_ind];
+        update_FIFO(set_ind);
+
+        // replace this block
+        if (write_back && (set[index].dirty)) {
+            write_block_to_memory(set + index, addr);
         }
-        fetch_block_from_memory(set, addr);
+        fetch_block_from_memory(set + index, addr);
         return false;
     }
 
@@ -153,7 +168,7 @@ public:
         u32 index;
         find_in_cache(addr, set, index);
         set[index][addr & byte_mask] = reg;
-        set[index].meta &= (tag_mask | 1); // set age = 0
+        set[index].age = 0;
     }
 
     void load_byte(u32 &reg, u32 addr) {
@@ -163,7 +178,7 @@ public:
         find_in_cache(addr, set, index);
         reg = set[index][addr & byte_mask]; // move byte
         reg |= (set[index][0] & 0x80) ? 0xFFFFFF00:0; // perform sign extend
-        set[index].meta &= (tag_mask | 1);  // set age = 0
+        set[index].age = 0;
     }
 
     void load_unsigned_byte(u32 &reg, u32 addr) {
@@ -172,7 +187,7 @@ public:
         u32 index;
         find_in_cache(addr, set, index);
         reg = set[index][addr & byte_mask]; // move byte
-        set[index].meta &= (tag_mask | 1);  // set age = 0
+        set[index].age = 0;
     }
 
     void store_word(u32 &reg, u32 addr) {
@@ -182,7 +197,7 @@ public:
         find_in_cache(addr, set, index);
         *((u32*)(set[index].data)) = reg;
         if (write_back) {
-            set[index].meta |= 1; // set dirty bit = 1
+            set[index].dirty = 1; // set dirty bit = 1
         } else {
             (*ram)[addr] = reg;   // write-through
         }
@@ -194,7 +209,11 @@ public:
         u32 index;
         find_in_cache(addr, set, index);
         reg = *((u32*)(set[index].data));
-        set[index].meta &= (tag_mask | 1); // set age = 0
+        set[index].age = 0; // set age = 0
+    }
+
+    void print_cache() {
+        // TO-DO
     }
 
 protected:
@@ -204,8 +223,8 @@ protected:
      */
     void fetch_block_from_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
-        block->meta = 0;                  // clear block meta
-        block->meta |= (addr & tag_mask); // put new tag
+        block->tag = block->age = block->dirty = 0; // clear block info
+        block->tag = (addr & tag_mask); // put new tag
 
         addr &= (~byte_mask);  // change addr to where the block starts
 
@@ -219,7 +238,7 @@ protected:
      */
     void write_block_to_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
-        block->meta &= -2;      // set dirty bit to 0
+        block->dirty = 0;       // set dirty bit to zero
         addr &= (~byte_mask);   // change addr to where the block starts
 
         for (u32 p = 0; p <= byte_mask; ++p ) {
