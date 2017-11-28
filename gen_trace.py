@@ -6,9 +6,11 @@ def generate(filenm, ram_size, operations):
 
     with open(filenm, 'w') as f:
         for i in range(operations):
-            st = '{} {} {}'.format(random.choice(ops),
-                                     '{0:#0{1}x}'.format(random.randint(0, ram_size-1), 10),
-                                     '{0:#0{1}x}'.format(random.randint(0, 255), 4))
+            if random.randint(0,1):
+                st = 's {} {}'.format('{0:#0{1}x}'.format(random.randint(0, ram_size-1), 10),
+                                      '{0:#0{1}x}'.format(random.randint(0, 255), 4))
+            else:
+                st = 'l {}'.format('{0:#0{1}x}'.format(random.randint(0, ram_size-1), 10))
             print(st)
             f.write(st + '\n')
 
