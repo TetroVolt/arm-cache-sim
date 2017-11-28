@@ -29,7 +29,11 @@ struct CacheBlock {
 };
 
 ostream& operator << (ostream& os, const CacheBlock& blk) {
-    os << "{ tag: " << blk.tag << ", dirty: " << blk.dirty << "}";
+    os << "{ tag: " << blk.tag << ", dirty: " << blk.dirty << ", data: ";
+    for (u32 d = 0; d < blk.data_size; d++) {
+        cout << "[" << (u32)(blk.data[d]) <<  "]";
+    }
+    os << " }";
     return os;
 }
 
