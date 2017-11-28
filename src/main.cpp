@@ -6,32 +6,30 @@
 using namespace std;
 
 // declarations
-void cache_math(u32 cache_size, u32 line_size, u32 n_way);
+void cache_math(u32 cache_size = 32 * 1024, u32 line_size = 32, u32 n_way = 2);
 void cache_test();
 
 // MAIN
 int main(int argc, char ** argv) {
+    //cache_math();
     cache_test();
     return 0;
 }
 
 void cache_test() {
-    Cache cache(32 * 1024, 32, 2, 64 * 1024);
+    Cache cache(32 * 1024, 32, 2, 128 * 1024);
     cache.print_cache();
 }
 
 //Implementations
 void cache_math(u32 cache_size, u32 line_size, u32 n_way) {
-    //u32 cache_size = 32 * 1024;
-    //u32 line_size = 32;
-    //u32 n_way = 1;
 
-    u32 num_groups = cache_size / n_way / line_size;
+    u32 num_groups = cache_size / line_size;
 
-    u32 byte_mask   = line_size - 1;
-    u32 assoc_mask  = (num_groups - 1) << util::log2(line_size);
+    u32 byte_mask   = line_size/n_way - 1;
+    u32 assoc_shift = util::log2(line_size / n_way);
+    u32 assoc_mask  = (num_groups - 1) << assoc_shift;
     u32 tag_mask    = ~(byte_mask | assoc_mask);
-    u32 assoc_shift = util::log2(line_size);
 
     cout << "line_size   = " << line_size << endl;
     cout << "n_way       = " << n_way << endl;

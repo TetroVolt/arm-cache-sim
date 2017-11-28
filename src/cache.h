@@ -80,7 +80,7 @@ public:
             throw std::exception();
         }
 
-        num_sets = cache_size / (n_way * block_size);
+        num_sets = cache_size / block_size;
         this->n_way = n_way;
         sets = new CacheBlock*[num_sets];
 
@@ -88,14 +88,14 @@ public:
         for (u32 i = 0; i < num_sets; i++) {
             sets[i] = new CacheBlock[n_way];
             for (u32 j = 0; j < n_way; j++) {
-                sets[i][j].data_size = block_size;
-                sets[i][j].data = new char[block_size];
+                sets[i][j].data_size = block_size / n_way;
+                sets[i][j].data = new char[block_size / n_way];
             }
         }
 
-        byte_mask   = block_size - 1;
-        assoc_mask  = (num_sets - 1) << util::log2(block_size);
-        assoc_shift = util::log2(block_size);
+        byte_mask   = block_size / n_way - 1;
+        assoc_shift = util::log2(block_size / n_way);
+        assoc_mask  = (num_sets - 1) << assoc_shift;
         tag_mask    = ~(byte_mask | assoc_mask);
 
         ram = new Memory(ram_size);
