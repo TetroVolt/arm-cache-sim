@@ -1,5 +1,6 @@
 // imports
 #include <iostream>
+#include <fstream>
 #include "cache.h"
 #include "memory.h"
 #include "util.h"
@@ -17,8 +18,31 @@ int main(int argc, char ** argv) {
 }
 
 void cache_test() {
-    Cache cache(32 * 1024, 32, 2, 128 * 1024);
-    cache.print_cache();
+    Cache cache(32, 8, 2, 128);
+    u32 addr;
+    u32 choice;
+    while (cin.good()) {
+        cout << "\n(1) Store\n(2) Load\n(3) Print Cache\n(4) quit" << endl;
+        cout << "Enter choice: ";
+        cin >> choice; cin.ignore();
+
+        if (choice == 4) break;
+        if (choice == 3) {
+            cache.print_cache();
+            continue;
+        }
+
+        cout << "Enter address: ";
+        cin >> addr; cin.ignore();
+        if (choice == 1) { // store
+            cout << "Enter value to store: ";
+            cin >> choice; cin.ignore();
+            cache.store_byte(choice, addr);
+        } else if (choice == 2) { // load
+            cache.load_byte(choice, addr);
+            cout << "Value loaded = " << choice << endl;
+        }
+    }
 }
 
 //Implementations

@@ -7,6 +7,16 @@
 #include "memory.h"
 using namespace std;
 
+struct CacheStat {
+    u32 conflict_misses = 0;
+    u32 compulsory_misses = 0;
+    u32 capacity_misses = 0;
+    u32 cache_hits = 0;
+    CacheStat() {}
+    ~CacheStat() {}
+};
+
+
 struct CacheBlock {
     char * data = nullptr;
     u32 data_size = 0;  // length of data array
@@ -29,7 +39,10 @@ struct CacheBlock {
 };
 
 ostream& operator << (ostream& os, const CacheBlock& blk) {
-    os << "{ tag: " << blk.tag << ", dirty: " << blk.dirty << ", data: ";
+    os << "{ tag: "; 
+    //util::print_bin(blk.tag);
+    os << blk.tag;
+    os << ", dirty: " << blk.dirty << ", data: ";
     for (u32 d = 0; d < blk.data_size; d++) {
         cout << "[" << (u32)(blk.data[d]) <<  "]";
     }

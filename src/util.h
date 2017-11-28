@@ -13,30 +13,6 @@ using namespace std;
 #define MAX(a,b) ((a > b) ? a : b)
 #define MIN(a,b) ((a < b) ? a : b)
 
-namespace util {
-
-    // returns true if c is between '0' and '9'
-    inline bool isDigit(const char c);
-
-    // converts a number from 0-15 to hex char
-    char num2hex(int c);
-
-    // converts a hex char into an integer
-    int hex2num(char hexc);
-
-    // converts a hex string into an integer
-    int hex2i32(const string& hexnum);
-
-    // converts an int into a hex string
-    string to_hex(int c);
-
-    bool is_pow2(unsigned int x);
-
-} // end namespace util
-
-
-
-// implementations
 
 namespace util {
 
@@ -72,11 +48,8 @@ namespace util {
             }
             if ((byte < sizeof(T) - 1)) cout << " ";
         }
-        cout << endl;
+        //cout << endl;
     }
-
-
-
 
 
     char num2hex(int c) {
@@ -100,8 +73,13 @@ namespace util {
         return '\0';
     }
 
-    int hex2num(char c) {
+    inline char to_lower(char c) {
+        return ('A' <= c && c <= 'Z') ? c + 'a' - 'A' : c;
+    }
+
+    unsigned int hex2num(char c) {
         if (isDigit(c)) return c - '0';
+        c = to_lower(c);
         switch (c) {
             case 'a':
                 return 10;
@@ -123,8 +101,8 @@ namespace util {
     /**
      *  hexnum must be a 32 hex number
      */
-    int hex2i32(const string& hexnum) {
-        int ret = 0;
+    unsigned int hex2u32(const string& hexnum) {
+        unsigned int ret = 0;
         for (const char &c : hexnum) {
             ret = ret << 4;
             ret |= hex2num(c);

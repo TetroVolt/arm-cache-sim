@@ -16,7 +16,7 @@ def generate(filenm, ram_size, operations):
 
 
 def Main():
-    generate('tracefile.txt', 1024 * 32, 20)
+    generate('tracefile.txt', 128 * 1024, 20)
     pass
 
 if __name__ == '__main__':
