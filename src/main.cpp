@@ -1,24 +1,56 @@
 // imports
 #include <iostream>
 #include <fstream>
+#include <cstring>
 #include "cache.h"
 #include "memory.h"
 #include "util.h"
 using namespace std;
 
 // declarations
+void print_usage(const char *);
+int process_stdin();
+int process_file(const char *);
+
 void cache_math(u32 cache_size = 32 * 1024, u32 line_size = 32, u32 n_way = 2);
 void cache_test();
-void print_usage(const char *);
 
 // MAIN
 int main(int argc, char ** argv) {
+
     //cache_math();
     //cache_test();
 
+    if (argc == 1) {
+        return process_stdin();
+    } else { // argc >= 1
+        if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        } else if (strcmp(argv[1], "-f") == 0) {
+            if (argc == 2) {
+                cerr << "ERROR! no file argument found" << endl;
+                cerr << "use --help flag for usage" << endl;
+                return 2;
+            }
+            return process_file(argv[2]);
+        } else {
+            cerr << "ERROR! malformed arguments." << endl;
+            cerr << "use --help flag for usage" << endl;
+            return -1;
+        }
+    }
 
+    return 0;
+}
 
-    print_usage(argv[0]);
+int process_stdin() {
+
+    return 0;
+}
+
+int process_file(const char * filenm) {
+
     return 0;
 }
 
