@@ -64,14 +64,14 @@ int process_trace(istream& input) {
             if (!input.good()) goto fixerr;
 
             cache.store_byte(C, L);
-            cout << "Stored {data: 0x" << C << "} to address: 0x" << L << endl;
+            cout << "Stored at addr 0x" << L << " {data: 0x" << C << "}" << endl;
 
         } else if (ins == "l") { // perform load
             input >> L;
             if (!input.good()) goto fixerr;
 
             cache.load_byte(C, L);
-            cout << "Loaded {data: 0x" << C << "} from address: 0x" << L << endl;
+            cout << "Loaded from addr 0x" << L << " {data: 0x" << C << "}" << endl;
 
         } else if (ins == "print") {
             cache.print_cache();

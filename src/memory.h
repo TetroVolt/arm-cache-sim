@@ -11,7 +11,7 @@ struct Memory {
     char * data;
     Memory(u32 size) {
         this->size = size;
-        data = new char[size];
+        data = new char[size]();
     }
     Memory(Memory && move) {
         this->size = move.size;

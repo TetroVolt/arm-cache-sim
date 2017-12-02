@@ -7,6 +7,9 @@
 #include "memory.h"
 using namespace std;
 
+/**
+ * For recording statistics
+ */
 struct CacheStat {
     u32 conflict_misses = 0;
     u32 compulsory_misses = 0;
@@ -15,6 +18,10 @@ struct CacheStat {
     CacheStat() {}
     ~CacheStat() {}
 };
+ostream& operator << (ostream& os, const CacheStat& stat) {
+    //TO-DO
+    return os;
+}
 
 
 struct CacheBlock {
@@ -51,7 +58,7 @@ ostream& operator << (ostream& os, const CacheBlock& blk) {
        << "{ tag: 0x" << blk.tag
        << ", dirty: " << blk.dirty << ", data: ";
     for (u32 d = 0; d < blk.data_size; d++) {
-        os << "[0x" << (u32)(blk.data[d]) <<  "]";
+        os << "[0x" << ((u32)(blk.data[d]) & 0xFF) <<  "]";
     }
     return os << " }";
 }
@@ -74,34 +81,36 @@ protected:
     bool write_back = false; // write-back or write-through
     bool LRU        = false;        // LRU or FIFO
 
+    // stats
+    CacheStat cache_stats;
+
 public:
     /**
      * Constructor
      *  @param cache_size   size in bytes of the cache
-     *  @param block_size    size of each cache block: number of bytes per block
+     *  @param line_size    size of each cache block: number of bytes per block
      *  @param n_way        set associativity: blocks per set
      */
     explicit
-    Cache(u32 cache_size, u32 block_size, u32 n_way, u32 ram_size) {
-        //TO-DO: set policies
+    Cache(u32 cache_size, u32 line_size, u32 n_way, u32 ram_size) {
 
         if ( !util::is_pow2(cache_size)
              || !util::is_pow2(cache_size)
              || !util::is_pow2(n_way) )    {
-            cerr << "ERROR! cache_size and block_size must be a power of 2!"
+            cerr << "ERROR! cache_size and line_size must be a power of 2!"
                  << endl;
             throw std::exception();
         }
 
-        if (cache_size < (block_size * n_way)) {
+        if (cache_size < (line_size * n_way)) {
             cerr << "Invalid ratio of parameters: "
                  << "cache_size : " << cache_size << endl
-                 << "block_size : " << block_size << endl
+                 << "line_size : " << line_size << endl
                  << "n_way      : " << n_way << endl;
             throw std::exception();
         }
 
-        num_sets = cache_size / block_size;
+        num_sets = cache_size / line_size;
         this->n_way = n_way;
         sets = new CacheBlock*[num_sets];
 
@@ -109,13 +118,13 @@ public:
         for (u32 i = 0; i < num_sets; i++) {
             sets[i] = new CacheBlock[n_way];
             for (u32 j = 0; j < n_way; j++) {
-                sets[i][j].data_size = block_size / n_way;
-                sets[i][j].data = new char[block_size / n_way];
+                sets[i][j].data_size = line_size / n_way;
+                sets[i][j].data = new char[line_size / n_way];
             }
         }
 
-        byte_mask   = block_size / n_way - 1;
-        assoc_shift = util::log2(block_size / n_way);
+        byte_mask   = line_size / n_way - 1;
+        assoc_shift = util::log2(line_size / n_way);
         assoc_mask  = (num_sets - 1) << assoc_shift;
         tag_mask    = ~(byte_mask | assoc_mask);
 
@@ -124,7 +133,6 @@ public:
     }
 
     void print_cache() {
-        // TO-DO
         cout << "num_sets = " << num_sets << endl;
         cout << "n_way    = " << n_way    << endl;
         for (u32 s = 0; s < num_sets; s++) {
@@ -136,8 +144,8 @@ public:
         }
     }
 
-    void print_statistics() {
-        // TO-DO
+    inline void print_statistics() {
+        cout << cache_stats << endl;
     }
 
     inline void toggle_replacement() {
@@ -160,9 +168,6 @@ public:
         if (fifo_ind) delete[] fifo_ind;
     }
 
-    /**
-     *
-     */
     void store_byte(u32 &reg, u32 addr) {
         CacheBlock * set;
         u32 index;
