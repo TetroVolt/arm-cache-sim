@@ -30,12 +30,20 @@ struct CacheBlock {
     // destructor
     ~CacheBlock() { if (data) delete[] data; }
 
-    char& operator [](u32 index) {
-        // access operator
-        assert(index < data_size);
-        return data[index];
+    void set_byte(u32& reg, u32 addr) {
+        assert(addr < data_size);
+        data[addr] = reg;
     }
 
+    void get_byte(u32& reg, u32 addr) {
+        assert(addr < data_size);
+        reg = data[addr];
+    }
+
+    char& operator [] (u32 addr) {
+        assert(addr < data_size);
+        return data[addr];
+    }
 };
 
 ostream& operator << (ostream& os, const CacheBlock& blk) {
@@ -111,17 +119,6 @@ public:
         assoc_mask  = (num_sets - 1) << assoc_shift;
         tag_mask    = ~(byte_mask | assoc_mask);
 
-        /*
-        cout << "Cache Masks:";
-        cout << "\nBinary byte_mask  : ";
-        util::print_bin(byte_mask);
-        cout << "\nBinary assoc_mask : ";
-        util::print_bin(assoc_mask);
-        cout << "\nBinary tag_mask   : ";
-        util::print_bin(tag_mask); cout << endl;
-        */
-
-
         ram = new Memory(ram_size);
         fifo_ind = new u32[num_sets](); // initialize to zeros
     }
@@ -165,20 +162,18 @@ public:
      *
      */
     void store_byte(u32 &reg, u32 addr) {
-        //TO-DO
         CacheBlock * set;
         u32 index;
         find_in_cache(addr, set, index);
-        set[index][addr & byte_mask] = reg;
+        set[index].set_byte(reg, addr & byte_mask);
         set[index].age = 0;
     }
 
     void load_byte(u32 &reg, u32 addr) {
-        //TO-DO
         CacheBlock * set;
         u32 index;
         find_in_cache(addr, set, index);
-        reg = set[index][addr & byte_mask]; // move byte
+        set[index].get_byte(reg, addr & byte_mask);
         set[index].age = 0;
     }
 
@@ -188,7 +183,8 @@ protected:
      */
     void update_lru(CacheBlock * set) {
         for (u32 n = 0; n < n_way; ++n) {
-            set[n].age = MAX(n_way, set[n].age + 1);
+            //set[n].age = MAX(n_way, set[n].age + 1);
+            set[n].age += 1;
         }
     }
 
@@ -197,7 +193,7 @@ protected:
      */
     inline void update_FIFO(u32 set_num) {
         assert(set_num < num_sets);
-        fifo_ind[set_num] = (fifo_ind[set_num] + 1) % num_sets;
+        fifo_ind[set_num] = (fifo_ind[set_num] + 1) % n_way;
     }
 
     /** find(@addr, @set, @index)
@@ -219,10 +215,14 @@ protected:
         u32 set_ind = (addr & assoc_mask) >> assoc_shift;
         set = sets[set_ind];
 
+        update_lru(set);
+        update_FIFO(set_ind);
+
         index = 0;
         for (u32 p = 0; p < n_way; p++) {
             if ( (addr & tag_mask) == (set[p].tag & tag_mask) ) {
                 index = p;
+                set[index].age = 0;
                 return true;
             }
 
@@ -232,12 +232,13 @@ protected:
         }
 
         index = (LRU) ? index : fifo_ind[set_ind];
-        update_FIFO(set_ind);
+        assert(index < n_way);
 
         // replace this block
         if (write_back && (set[index].dirty)) {
             write_block_to_memory(set + index, addr);
         }
+
         fetch_block_from_memory(set + index, addr);
         return false;
     }
@@ -249,10 +250,11 @@ protected:
      */
     void fetch_block_from_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
-        block->tag = block->age = block->dirty = 0; // clear block info
-        block->tag = (addr & tag_mask); // put new tag
 
-        addr &= (~byte_mask);  // change addr to where the block starts
+        block->tag = block->age = block->dirty = 0; // clear block info
+        block->tag = (addr & tag_mask);             // put new tag
+
+        addr &= (~byte_mask); // change addr to where the block starts
 
         for (u32 p = 0; p <= byte_mask; ++p) {
             (*block)[p] = (*ram)[addr + p]; // copy ram into cache
@@ -264,6 +266,7 @@ protected:
      */
     void write_block_to_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
+
         block->dirty = 0;       // set dirty bit to zero
         addr &= (~byte_mask);   // change addr to where the block starts
 

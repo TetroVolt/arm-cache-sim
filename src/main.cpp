@@ -47,6 +47,12 @@ int main(int argc, char ** argv) {
 int process_trace(istream& input) {
     u32 C, L, N, M;
     input >> std::dec >> C >> L >> N >> M >> std::hex;
+
+    cout << "Cache  Size: " << C << endl;
+    cout << "Line   Size: " << L << endl;
+    cout << "N_way  Size: " << N << endl;
+    cout << "Memory Size: " << M << endl;
+
     cout << std::hex;
     Cache cache(C, L, N, M);
 
@@ -72,6 +78,7 @@ int process_trace(istream& input) {
         } else {
             cerr << "ERROR! Unknown instruction \"" << ins << "\"" << endl;
         }
+        cache.print_cache();
         continue;
 
         fixerr:
