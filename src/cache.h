@@ -77,6 +77,8 @@ public:
      */
     explicit
     Cache(u32 cache_size, u32 block_size, u32 n_way, u32 ram_size) {
+        //TO-DO: set policies
+
         if ( !util::is_pow2(cache_size)
              || !util::is_pow2(cache_size)
              || !util::is_pow2(n_way) )    {
