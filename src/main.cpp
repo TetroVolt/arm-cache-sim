@@ -9,12 +9,45 @@ using namespace std;
 // declarations
 void cache_math(u32 cache_size = 32 * 1024, u32 line_size = 32, u32 n_way = 2);
 void cache_test();
+void print_usage(const char *);
 
 // MAIN
 int main(int argc, char ** argv) {
     //cache_math();
-    cache_test();
+    //cache_test();
+
+
+
+    print_usage(argv[0]);
     return 0;
+}
+
+void print_usage(const char * prognm) {
+    cout << "Usage : " << prognm << " [flags] [arguments]" << endl << endl
+         << "Behavior:" << endl
+         << " By default if no arguments are given the program" << endl
+         << " will read trace commands from standard input." << endl
+         << " The first 4 numbers of any input must be:" << endl
+         << "  * Cache Size" << endl
+         << "  * Line Size " << endl
+         << "  * n_way association" << endl
+         << "  * memory size" << endl
+         << " The program will keep reading input until end of file." << endl
+         << " commands take 2 forms:" << endl
+         << "  * store:" << endl
+         << "      s 0x000f342b 0x11" << endl
+         << "  * load :" << endl
+         << "      l 0x000f342b" << endl
+         << " The output of the program prints out loaded values," << endl
+         << " and cache statistics. " << endl << endl
+         << "Flags:" << endl
+         << "   -h  --help      show this message" << endl
+         << "   -f <filenm>     specify tracefile instead of"
+         << "                   reading from standard input" << endl << endl
+         << "examples:" << endl
+         << prognm << " -h" << endl
+         << prognm << " -f ./tracefile.trace" << endl
+         ;
 }
 
 void cache_test() {
