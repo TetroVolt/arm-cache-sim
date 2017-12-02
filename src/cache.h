@@ -39,15 +39,13 @@ struct CacheBlock {
 };
 
 ostream& operator << (ostream& os, const CacheBlock& blk) {
-    os << "{ tag: "; 
-    //util::print_bin(blk.tag);
-    os << blk.tag;
-    os << ", dirty: " << blk.dirty << ", data: ";
+    os << std::hex
+       << "{ tag: 0x" << blk.tag
+       << ", dirty: " << blk.dirty << ", data: ";
     for (u32 d = 0; d < blk.data_size; d++) {
-        cout << "[" << (u32)(blk.data[d]) <<  "]";
+        os << "[0x" << (u32)(blk.data[d]) <<  "]";
     }
-    os << " }";
-    return os;
+    return os << " }";
 }
 
 class Cache {
@@ -65,8 +63,8 @@ protected:
     u32 assoc_shift; // amount to shift for assoc bits
 
     /* policies */
-    bool write_back; // write-back or write-through
-    bool LRU;        // LRU or FIFO
+    bool write_back = false; // write-back or write-through
+    bool LRU        = false;        // LRU or FIFO
 
 public:
     /**
@@ -113,6 +111,17 @@ public:
         assoc_mask  = (num_sets - 1) << assoc_shift;
         tag_mask    = ~(byte_mask | assoc_mask);
 
+        /*
+        cout << "Cache Masks:";
+        cout << "\nBinary byte_mask  : ";
+        util::print_bin(byte_mask);
+        cout << "\nBinary assoc_mask : ";
+        util::print_bin(assoc_mask);
+        cout << "\nBinary tag_mask   : ";
+        util::print_bin(tag_mask); cout << endl;
+        */
+
+
         ram = new Memory(ram_size);
         fifo_ind = new u32[num_sets](); // initialize to zeros
     }
@@ -132,6 +141,14 @@ public:
 
     void print_statistics() {
         // TO-DO
+    }
+
+    inline void toggle_replacement() {
+        LRU = !LRU;
+    }
+
+    inline void toggle_write() {
+        write_back = !write_back;
     }
 
     // destructor

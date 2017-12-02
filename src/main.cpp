@@ -17,14 +17,14 @@ void cache_test();
 // MAIN
 int main(int argc, char ** argv) {
 
-    int ret = 0;
     if (argc >= 2
         && (strcmp(argv[1], "-h") == 0
          || strcmp(argv[1], "--help") == 0)) {
         print_usage(argv[0]);
-        goto end_prog;
+        return 0;
     }
 
+    int ret = 0;
     if (argc == 1) {
         ret = process_trace(cin);
     } else if (argc ==3 && strcmp(argv[1], "-f") == 0) {
@@ -41,37 +41,48 @@ int main(int argc, char ** argv) {
     //cache_math();
     //cache_test();
 
-    end_prog: return ret;
+    return ret;
 }
 
 int process_trace(istream& input) {
     u32 C, L, N, M;
-    input >> C >> L >> N >> M;
+    input >> std::dec >> C >> L >> N >> M >> std::hex;
+    cout << std::hex;
     Cache cache(C, L, N, M);
 
-    // set hex modes
-    cout << std::hex;
-    cin >> std::hex;
-
     string ins;
-    while (input.good()) {
-        input >> ins; input.ignore();
-        if (ins == "s") {
-            //perform store instruction
-            input >> L >> C; input.ignore();
+    while (input >> ins) {
+
+        if (ins == "s") { // perform store
+            input >> L >> C;
+            if (!input.good()) goto fixerr;
+
             cache.store_byte(C, L);
             cout << "Stored {data: 0x" << C << "} to address: 0x" << L << endl;
-        } else if (ins == "l") {
-            //perform load instruction
-            input >> L; input.ignore();
+
+        } else if (ins == "l") { // perform load
+            input >> L;
+            if (!input.good()) goto fixerr;
+
             cache.load_byte(C, L);
             cout << "Loaded {data: 0x" << C << "} from address: 0x" << L << endl;
+
+        } else if (ins == "print") {
+            cache.print_cache();
         } else {
-            cerr << "ERROR! Unknown instruction \"" << ins << "\"";
-            return -1;
+            cerr << "ERROR! Unknown instruction \"" << ins << "\"" << endl;
         }
+        continue;
+
+        fixerr:
+            cerr << "ERROR! invalid input" << endl;
+            if (input.eof()) break;
+            input.clear();
+            input.ignore();
+
     }
 
+    cache.print_cache();
     cache.print_statistics();
 
     return 0;
