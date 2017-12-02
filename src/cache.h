@@ -156,6 +156,8 @@ public:
             }
             delete[] sets;
         }
+        if (ram) delete ram;
+        if (fifo_ind) delete[] fifo_ind;
     }
 
     /**

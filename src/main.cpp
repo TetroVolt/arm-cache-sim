@@ -78,7 +78,8 @@ int process_trace(istream& input) {
         } else {
             cerr << "ERROR! Unknown instruction \"" << ins << "\"" << endl;
         }
-        cache.print_cache();
+        //cache.print_cache();
+
         continue;
 
         fixerr:
