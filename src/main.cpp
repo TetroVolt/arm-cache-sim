@@ -9,77 +9,50 @@ using namespace std;
 
 // declarations
 void print_usage(const char *);
-int process_stdin();
-int process_file(const char *);
-
+int process_trace(istream& input);
 void cache_math(u32 cache_size = 32 * 1024, u32 line_size = 32, u32 n_way = 2);
 void cache_test();
 
 // MAIN
 int main(int argc, char ** argv) {
 
+    int ret = 0;
+    if (argc >= 2
+        && (strcmp(argv[1], "-h") == 0
+         || strcmp(argv[1], "--help") == 0)) {
+        print_usage(argv[0]);
+        goto end_prog;
+    }
+
+    if (argc == 1) {
+        ret = process_trace(cin);
+    } else if (argc ==3 && strcmp(argv[1], "-f") == 0) {
+        fstream input;
+        input.open(argv[2], ios::in);
+        ret = process_trace(input);
+        input.close();
+    } else {
+        cerr << "ERROR! malformed arguments." << endl;
+        cerr << "use --help flag for usage" << endl;
+        ret = -1;
+    }
+
     //cache_math();
     //cache_test();
 
-    if (argc == 1) {
-        return process_stdin();
-    } else { // argc >= 1
-        if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
-            print_usage(argv[0]);
-            return 0;
-        } else if (strcmp(argv[1], "-f") == 0) {
-            if (argc == 2) {
-                cerr << "ERROR! no file argument found" << endl;
-                cerr << "use --help flag for usage" << endl;
-                return 2;
-            }
-            return process_file(argv[2]);
-        } else {
-            cerr << "ERROR! malformed arguments." << endl;
-            cerr << "use --help flag for usage" << endl;
-            return -1;
-        }
+    end_prog: return ret;
+}
+
+int process_trace(istream& input) {
+    u32 C, L, N, M;
+    input >> C >> L >> N >> M;
+    Cache cache(C, L, N, M);
+
+    while (input.good()) {
+        // read input
     }
 
     return 0;
-}
-
-int process_stdin() {
-
-    return 0;
-}
-
-int process_file(const char * filenm) {
-
-    return 0;
-}
-
-void print_usage(const char * prognm) {
-    cout << "Usage : " << prognm << " [flags] [arguments]" << endl << endl
-         << "Behavior:" << endl
-         << " By default if no arguments are given the program" << endl
-         << " will read trace commands from standard input." << endl
-         << " The first 4 numbers of any input must be:" << endl
-         << "  * Cache Size" << endl
-         << "  * Line Size " << endl
-         << "  * n_way association" << endl
-         << "  * memory size" << endl
-         << " The program will keep reading input until end of file." << endl
-         << " commands take 2 forms:" << endl
-         << "  * store:" << endl
-         << "      s 0x000f342b 0x11" << endl
-         << "  * load :" << endl
-         << "      l 0x000f342b" << endl
-         << " The output of the program prints out loaded values," << endl
-         << " and cache statistics. " << endl << endl
-         << "Flags:" << endl
-         << "   -h  --help      show this message" << endl
-         << "   -f <filenm>     specify tracefile instead of"
-         << "                   reading from standard input" << endl << endl
-         << "examples:" << endl
-         << prognm << " -h" << endl
-         << prognm << " -f ./tracefile.trace" << endl
-         ;
 }
 
 void cache_test() {
@@ -135,4 +108,34 @@ void cache_math(u32 cache_size, u32 line_size, u32 n_way) {
 
     cout << "a_mask >> a_shift : ";
     util::print_bin(assoc_mask >> assoc_shift);
+}
+
+void print_usage(const char * prognm) {
+    const char* tabspace = "    ";
+    cout
+         << "Usage : " << prognm << " [flags] [arguments]" << endl << endl
+         << "Behavior:" << endl
+         << tabspace << "By default if no arguments are given the program" << endl
+         << tabspace << "will read trace commands from standard input." << endl
+         << tabspace << "The first 4 numbers of any input must be:" << endl
+         << tabspace << " * Cache Size" << endl
+         << tabspace << " * Line Size " << endl
+         << tabspace << " * n_way association" << endl
+         << tabspace << " * memory size" << endl
+         << tabspace << "The program will keep reading input until end of file." << endl
+         << tabspace << "commands take 2 forms:" << endl
+         << tabspace << " * store:" << endl
+         << tabspace << "     s 0x000f342b 0x11" << endl
+         << tabspace << " * load :" << endl
+         << tabspace << "      l 0x000f342b" << endl
+         << tabspace << "The output of the program prints out loaded values," << endl
+         << tabspace << "and cache statistics. " << endl << endl
+         << "Flags:" << endl
+         << tabspace << "   -h  --help      show this message" << endl
+         << tabspace << "   -f <filenm>     specify tracefile instead of" << endl
+         << tabspace << "                   reading from standard input" << endl << endl
+         << "examples:" << endl
+         << tabspace << prognm << " -h" << endl
+         << tabspace << prognm << " -f ./tracefile.trace" << endl << endl
+         ;
 }
