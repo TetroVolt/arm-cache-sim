@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <string>
 #include "cache.h"
 #include "memory.h"
 #include "util.h"
@@ -48,9 +49,30 @@ int process_trace(istream& input) {
     input >> C >> L >> N >> M;
     Cache cache(C, L, N, M);
 
+    // set hex modes
+    cout << std::hex;
+    cin >> std::hex;
+
+    string ins;
     while (input.good()) {
-        // read input
+        input >> ins; input.ignore();
+        if (ins == "s") {
+            //perform store instruction
+            input >> L >> C; input.ignore();
+            cache.store_byte(C, L);
+            cout << "Stored {data: 0x" << C << "} to address: 0x" << L << endl;
+        } else if (ins == "l") {
+            //perform load instruction
+            input >> L; input.ignore();
+            cache.load_byte(C, L);
+            cout << "Loaded {data: 0x" << C << "} from address: 0x" << L << endl;
+        } else {
+            cerr << "ERROR! Unknown instruction \"" << ins << "\"";
+            return -1;
+        }
     }
+
+    cache.print_statistics();
 
     return 0;
 }

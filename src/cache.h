@@ -128,6 +128,9 @@ public:
         }
     }
 
+    void print_statistics() {
+        // TO-DO
+    }
 
     // destructor
     ~Cache() {
