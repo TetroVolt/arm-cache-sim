@@ -5,6 +5,7 @@ Memory Size used: 1 MiB
 Cache Size used : 64 KiB
 
 to build project: ``` $ make build ```
+
 to run tests    : ``` $ make run ```
 
 gen\_trace.py is used to generate the tracefiles
