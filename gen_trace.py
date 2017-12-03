@@ -6,17 +6,16 @@ def generate(filenm, ram_size, operations):
 
     with open(filenm, 'w') as f:
         for i in range(operations):
-            if random.randint(0,1):
-                st = 's {} {}'.format('{0:#0{1}x}'.format(random.randint(1, ram_size-1), 10),
-                                      '{0:#0{1}x}'.format(random.randint(0, 255), 4))
-            else:
-                st = 'l {}'.format('{0:#0{1}x}'.format(random.randint(1, ram_size-1), 10))
+            st = '{}'.format('{0:#0{1}x}'.format(random.randint(1, ram_size-1), 10))
             print(st)
             f.write(st + '\n')
 
-
 def Main():
-    generate('tracefile.trace', 64 * 1024, 64 * 1024)
+    generate('trace1.trace', 128 * 1024, 1024)
+    generate('trace2.trace', 256 * 1024, 1024)
+    generate('trace3.trace', 512 * 1024, 1024)
+    generate('trace4.trace', 1024 * 1024, 1024)
+    generate('trace5.trace', 2048 * 1024, 1024)
     pass
 
 if __name__ == '__main__':

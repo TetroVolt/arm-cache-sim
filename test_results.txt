@@ -1,0 +1,70 @@
+
+
+trace1
+BEST CONFIG(s) for 1024 requests : 
+max_hits: 524
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: FIFO
+  hits       : 524
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: LRU
+  hits       : 524
+-e\ntrace2
+BEST CONFIG(s) for 1024 requests : 
+max_hits: 284
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: FIFO
+  hits       : 284
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: LRU
+  hits       : 284
+
+trace3
+BEST CONFIG(s) for 1024 requests : 
+max_hits: 142
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: FIFO
+  hits       : 142
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: LRU
+  hits       : 142
+
+trace4
+BEST CONFIG(s) for 1024 requests : 
+max_hits: 79
+config : 
+  line_size  : 32
+  n_way      : 1
+  replacement: FIFO
+  hits       : 79
+config : 
+  line_size  : 32
+  n_way      : 1
+  replacement: LRU
+  hits       : 79
+
+trace5
+BEST CONFIG(s) for 1024 requests : 
+max_hits: 40
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: FIFO
+  hits       : 40
+config : 
+  line_size  : 64
+  n_way      : 1
+  replacement: LRU
+  hits       : 40

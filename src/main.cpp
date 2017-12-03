@@ -10,7 +10,7 @@ using namespace std;
 
 // function declarations
 void print_usage(const char *);
-int process_trace(istream& input);
+int process_trace(fstream& input);
 
 // MAIN
 int main(int argc, char ** argv) {
@@ -31,55 +31,81 @@ int main(int argc, char ** argv) {
     return ret;
 }
 
-int process_trace(istream& input) {
-    u32 C, L, N, M, requests = 0;
-    input >> std::dec >> C >> L >> N >> M >> std::hex;
+int process_trace(fstream& input) {
+    u32 cache_size = 64 * 1024;
+    u32 line_sizes[]  = {32, 64};
+    u32 n_way[]       = {1, 2};
+    u32 replace[]     = {0, 1};
 
-    cout << "Cache  Size: " << C << endl;
-    cout << "Line   Size: " << L << endl;
-    cout << "N_way  Size: " << N << endl;
-    cout << "Memory Size: " << M << endl;
+    struct config {
+        int line_size = -1;
+        int association = -1;
+        int replacement = -1;
+        int hits = 0;
+    };
 
-    cout << std::hex;
-    Cache cache(C, L, N, M);
+    config configs[8];
+    u32 requests;
 
-    string ins;
-    while (input >> ins) {
-        requests++;
-        if (ins == "s") { // perform store
-            input >> L >> C;
-            if (!input.good()) goto fixerr;
+    u32 g = 0;
+    u32 max_hits = 0;
+    for (u32 l = 0; l < 2; ++l)
+    for (u32 r = 0; r < 2; ++r)
+    for (u32 n = 0; n < 2; ++n)
+    {
+        input.clear();
+        input.seekg(0, ios::beg);
 
-            cache.store_byte(C, L);
-            cout << "Stored at addr 0x" << L << " {data: 0x" << C << "}" << endl;
-
-        } else if (ins == "l") { // perform load
-            input >> L;
-            if (!input.good()) goto fixerr;
-
-            cache.load_byte(C, L);
-            cout << "Loaded from addr 0x" << L << " {data: 0x" << C << "}" << endl;
-        } else if (ins == "print") {
-            cache.print_cache();
+        Cache cache(cache_size, line_sizes[l], n_way[n]);
+        if (replace[r]) {
+            //cout << "LRU replacement" << endl;
+            cache.toggle_replacement();
         } else {
-            cerr << "ERROR! Unknown instruction \"" << ins << "\"" << endl;
-            requests--;
+            //cout << "FIFO replacement" << endl;
         }
 
-        continue;
+        u32 addr;
+        requests = 0;
+        while (input >> std::hex >> addr) {
+            if (input.fail()) {
+                cerr << "ERROR! invalid input" << endl;
+                if (input.eof()) break;
+                input.clear();
+                input.ignore();
+                continue;
+            }
 
-        fixerr:
-            cerr << "ERROR! invalid input" << endl;
-            if (input.eof()) break;
-            input.clear();
-            input.ignore();
+            cache.request_addr(addr);
+            //cout << "Request at 0x" << std::hex << addr << endl;
+            requests++;
+        }
 
+        //cache.print_cache();
+        //cache.print_statistics();
+        //cout << "Processed " << std::dec << requests << endl;
+
+        configs[g].line_size = line_sizes[l];
+        configs[g].association = n_way[n];
+        configs[g].replacement = replace[r];
+        configs[g].hits = cache.get_hits();
+        if (configs[g].hits > max_hits) max_hits = configs[g].hits;
+        g++;
     }
 
-    cache.print_cache();
-    cache.print_statistics();
-
-    cout << "Completed " << std::dec << requests << " requests." << endl;
+    done:
+    cout << std::dec;
+    cout << "BEST CONFIG(s) for " << requests << " requests : " << endl;
+    cout << "max_hits: " << max_hits << endl;
+    for (g = 0; g < 8; ++g) {
+        if (configs[g].hits == max_hits) {
+            cout << "config : " << endl;
+            cout << "  line_size  : " << configs[g].line_size    << endl;
+            cout << "  n_way      : " << configs[g].association  << endl;
+            cout << "  replacement: ";
+            if (configs[g].replacement) cout << "LRU"; else cout << "FIFO"; cout << endl;
+            cout << "  hits       : " << configs[g].hits  << endl;
+        }
+    }
 
     return 0;
 }
@@ -94,17 +120,8 @@ void print_usage(const char * prognm) {
          << tabspace << "cache_size  = 32 kb , 64 kb" << endl
          << tabspace << "n_way       = 1 way, 2 way" << endl
          << tabspace << "replacement = LRU, or FIFO" << endl
-         << tabspace << "The first 4 numbers of any input must be:" << endl
-         << tabspace << " * Cache Size" << endl
-         << tabspace << " * Line Size " << endl
-         << tabspace << " * n_way association" << endl
-         << tabspace << " * memory size" << endl
          << tabspace << "The program will keep reading input until end of file." << endl
-         << tabspace << "commands take 2 forms:" << endl
-         << tabspace << " * store:" << endl
-         << tabspace << "     s 0x000f342b 0x11" << endl
-         << tabspace << " * load :" << endl
-         << tabspace << "      l 0x000f342b" << endl
+         << tabspace << "Memory addresses must be in hex" << endl
          << tabspace << "The output of the program prints out loaded values," << endl
          << tabspace << "and cache statistics. " << endl << endl
          << "examples:" << endl

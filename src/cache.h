@@ -4,7 +4,7 @@
 
 #include <assert.h>
 #include "util.h"
-#include "memory.h"
+//#include "memory.h"
 using namespace std;
 
 /**
@@ -31,8 +31,6 @@ ostream& operator << (ostream& os, const CacheStat& stat) {
 }
 
 struct CacheBlock {
-    char * data = nullptr;
-    u32 data_size = 0;  // length of data array
     u32 tag = 0;        // for [tag] and [dirty bit], use 1 and -2 for access mask
     u8 age = 0;         // age or fifo, using char enough for 32 and 64 byte size
     bool dirty = 0;     // dirty
@@ -40,33 +38,14 @@ struct CacheBlock {
 
     // constructor
     CacheBlock() {}
-
     // destructor
-    ~CacheBlock() { if (data) delete[] data; }
-
-    void set_byte(u32& reg, u32 addr) {
-        assert(addr < data_size);
-        data[addr] = reg & 0xff;
-    }
-
-    void get_byte(u32& reg, u32 addr) {
-        assert(addr < data_size);
-        reg = data[addr];
-    }
-
-    char& operator [] (u32 addr) {
-        assert(addr < data_size);
-        return data[addr];
-    }
+    ~CacheBlock() {}
 };
 
 ostream& operator << (ostream& os, const CacheBlock& blk) {
     os << std::hex
        << "{ tag: 0x" << blk.tag
-       << ", dirty: " << blk.dirty << ", data: ";
-    for (u32 d = 0; d < blk.data_size; d++) {
-        os << "[0x" << ((u32)(blk.data[d]) & 0xFF) <<  "]";
-    }
+       << ", dirty: " << blk.dirty;
     os << ", written_to: " << blk.written_to << "}";
     return os;
 }
@@ -76,7 +55,6 @@ protected:
     u32 num_sets;       // number of associative sets
     u32 n_way;          // number of blocks per set
     CacheBlock ** sets; // 2D array cache
-    Memory * ram;       // Main Memory
     u32 * fifo_ind;     // for fifo indexes
 
     bool isFull = false;
@@ -89,7 +67,7 @@ protected:
 
     /* policies */
     bool write_back = false; // write-back or write-through
-    bool LRU        = false;        // LRU or FIFO
+    bool LRU        = false; // LRU or FIFO
 
     // stats
     CacheStat cache_stats;
@@ -102,7 +80,7 @@ public:
      *  @param n_way        set associativity: blocks per set
      */
     explicit
-    Cache(u32 cache_size, u32 line_size, u32 n_way, u32 ram_size) {
+    Cache(u32 cache_size, u32 line_size, u32 n_way) {
 
         if ( !util::is_pow2(cache_size)
              || !util::is_pow2(cache_size)
@@ -127,10 +105,6 @@ public:
         // initialize array
         for (u32 i = 0; i < num_sets; i++) {
             sets[i] = new CacheBlock[n_way];
-            for (u32 j = 0; j < n_way; j++) {
-                sets[i][j].data_size = line_size / n_way;
-                sets[i][j].data = new char[line_size / n_way];
-            }
         }
 
         byte_mask   = line_size / n_way - 1;
@@ -138,8 +112,18 @@ public:
         assoc_mask  = (num_sets - 1) << assoc_shift;
         tag_mask    = ~(byte_mask | assoc_mask);
 
-        ram = new Memory(ram_size);
         fifo_ind = new u32[num_sets](); // initialize to zeros
+
+        /*
+        cout << "Creating new Cache with:" << endl << std::dec;
+        cout << "cache_size : " << cache_size << endl;
+        cout << "line_size  : " << cache_size << endl;
+        cout << "n_way      : " << n_way << endl;
+        cout << "num_sets   : " << num_sets << endl;
+        */
+
+        cout << std::hex;
+
     }
 
     void print_cache() {
@@ -158,6 +142,10 @@ public:
         cout << cache_stats << endl;
     }
 
+    u32 get_hits() {
+        return cache_stats.cache_hits;
+    }
+
     inline void toggle_replacement() {
         LRU = !LRU;
     }
@@ -174,25 +162,14 @@ public:
             }
             delete[] sets;
         }
-        if (ram) delete ram;
         if (fifo_ind) delete[] fifo_ind;
     }
 
-    void store_byte(u32 &reg, u32 addr) {
+    void request_addr(u32 addr) {
         assert(addr);
         CacheBlock * set;
         u32 index;
         find_in_cache(addr, set, index);
-        set[index].set_byte(reg, addr & byte_mask);
-        set[index].age = 0;
-    }
-
-    void load_byte(u32 &reg, u32 addr) {
-        assert(addr);
-        CacheBlock * set;
-        u32 index;
-        find_in_cache(addr, set, index);
-        set[index].get_byte(reg, addr & byte_mask);
         set[index].age = 0;
     }
 
@@ -266,17 +243,15 @@ protected:
         assert(index < n_way);
 
         if (!set[index].written_to) {
-            cout << " compulsory miss " << endl;
+            //cout << " compulsory miss " << endl;
             cache_stats.compulsory_misses++;
         } else if (check_full()) {
-            cout << " capacity miss " << endl;
+            //cout << " capacity miss " << endl;
             cache_stats.capacity_misses++;
         } else {
-            cout << " conflict miss " << endl;
+            //cout << " conflict miss " << endl;
             cache_stats.conflict_misses++;
         }
-
-        cout << "check_full() : " << check_full() << endl;
 
         // replace this block
         if (write_back && (set[index].dirty)) {
@@ -296,15 +271,9 @@ protected:
     void fetch_block_from_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
 
-        block->tag = block->age = block->dirty = 0; // clear block info
+        block->age = block->dirty = 0; // clear block info
         block->tag = (addr & tag_mask);             // put new tag
         block->written_to = 1;
-
-        addr &= (~byte_mask); // change addr to where the block starts
-
-        for (u32 p = 0; p <= byte_mask; ++p) {
-            (*block)[p] = (*ram)[addr + p]; // copy ram into cache
-        }
     }
 
     /**
@@ -312,13 +281,7 @@ protected:
      */
     void write_block_to_memory(CacheBlock *block, u32 addr) {
         assert(block != nullptr);
-
         block->dirty = 0;       // set dirty bit to zero
-        addr &= (~byte_mask);   // change addr to where the block starts
-
-        for (u32 p = 0; p <= byte_mask; ++p ) {
-            (*ram)[addr+p] = (*block)[p]; // copy cache into ram
-        }
     }
 };
 

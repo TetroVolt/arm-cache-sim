@@ -1,6 +1,22 @@
 # arm-cache-sim
 Arm Cache Simulator for Computer Organization and Architecture
 
+Memory Size used: 1 MiB
+Cache Size used : 64 KiB
+
+gen\_trace.py is used to generate the tracefiles
+
+trace1.py are requests for 128  KiB memory
+trace2.py are requests for 256  KiB memory
+trace3.py are requests for 512  KiB memory
+trace4.py are requests for 1024 KiB memory
+trace5.py are requests for 2048 KiB memory
+
+conclusions:
+    replacement scheme does not matter
+    n_way = 1, or direct mapping seems to be the best
+
+Requirements:
 ```
 +-----------------------------------------------------------+
 |                      #  Trace Files #                     |
