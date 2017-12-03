@@ -16,7 +16,10 @@ conclusions:
     replacement scheme does not matter
     n_way = 1, or direct mapping seems to be the best
 
-Requirements:
+Original Requirements:
+  * note:
+    - discarded s, l, and cycle requirements for trace files
+    - discarded write policy since it does not affect hit ratio
 ```
 +-----------------------------------------------------------+
 |                      #  Trace Files #                     |
