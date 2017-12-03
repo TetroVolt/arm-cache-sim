@@ -4,6 +4,9 @@ Arm Cache Simulator for Computer Organization and Architecture
 Memory Size used: 1 MiB
 Cache Size used : 64 KiB
 
+to build project: ``` $ make build ```
+to run tests    : ``` $ make run ```
+
 gen\_trace.py is used to generate the tracefiles
 
 trace1.py are requests for 128  KiB memory
