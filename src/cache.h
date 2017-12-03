@@ -20,9 +20,15 @@ struct CacheStat {
 };
 ostream& operator << (ostream& os, const CacheStat& stat) {
     //TO-DO
+
+    os << std::dec << "Cache Statistics :" << endl
+       << "  conflict   misses : " << stat.conflict_misses << endl
+       << "  compulsory misses : " << stat.compulsory_misses << endl
+       << "  capacity   misses : " << stat.capacity_misses << endl
+       << "  cache hits        : " << stat.cache_hits << endl;
+
     return os;
 }
-
 
 struct CacheBlock {
     char * data = nullptr;
@@ -30,6 +36,7 @@ struct CacheBlock {
     u32 tag = 0;        // for [tag] and [dirty bit], use 1 and -2 for access mask
     u8 age = 0;         // age or fifo, using char enough for 32 and 64 byte size
     bool dirty = 0;     // dirty
+    bool written_to = 0;
 
     // constructor
     CacheBlock() {}
@@ -39,7 +46,7 @@ struct CacheBlock {
 
     void set_byte(u32& reg, u32 addr) {
         assert(addr < data_size);
-        data[addr] = reg;
+        data[addr] = reg & 0xff;
     }
 
     void get_byte(u32& reg, u32 addr) {
@@ -60,7 +67,8 @@ ostream& operator << (ostream& os, const CacheBlock& blk) {
     for (u32 d = 0; d < blk.data_size; d++) {
         os << "[0x" << ((u32)(blk.data[d]) & 0xFF) <<  "]";
     }
-    return os << " }";
+    os << ", written_to: " << blk.written_to << "}";
+    return os;
 }
 
 class Cache {
@@ -70,6 +78,8 @@ protected:
     CacheBlock ** sets; // 2D array cache
     Memory * ram;       // Main Memory
     u32 * fifo_ind;     // for fifo indexes
+
+    bool isFull = false;
 
     /* helper masks and shifts */
     u32 byte_mask;   // for index of individual byte per cache block in set
@@ -133,7 +143,7 @@ public:
     }
 
     void print_cache() {
-        cout << "num_sets = " << num_sets << endl;
+        cout << "num_sets = " << std::dec << num_sets << endl;
         cout << "n_way    = " << n_way    << endl;
         for (u32 s = 0; s < num_sets; s++) {
             cout << "Set[" << s << "] {" << endl;
@@ -169,6 +179,7 @@ public:
     }
 
     void store_byte(u32 &reg, u32 addr) {
+        assert(addr);
         CacheBlock * set;
         u32 index;
         find_in_cache(addr, set, index);
@@ -177,6 +188,7 @@ public:
     }
 
     void load_byte(u32 &reg, u32 addr) {
+        assert(addr);
         CacheBlock * set;
         u32 index;
         find_in_cache(addr, set, index);
@@ -198,9 +210,21 @@ protected:
     /**
      * For FIFO
      */
-    inline void update_FIFO(u32 set_num) {
+    inline void update_fifo(u32 set_num) {
         assert(set_num < num_sets);
         fifo_ind[set_num] = (fifo_ind[set_num] + 1) % n_way;
+    }
+
+    bool check_full() {
+        if (isFull) return true;
+
+        for (u32 s = 0; s < num_sets; ++s) {
+            for (u32 n = 0; n < n_way; ++n) {
+                if (!sets[s][n].written_to) return false;
+            }
+        }
+
+        return isFull = true;
     }
 
     /** find(@addr, @set, @index)
@@ -223,13 +247,13 @@ protected:
         set = sets[set_ind];
 
         update_lru(set);
-        update_FIFO(set_ind);
 
         index = 0;
         for (u32 p = 0; p < n_way; p++) {
             if ( (addr & tag_mask) == (set[p].tag & tag_mask) ) {
                 index = p;
                 set[index].age = 0;
+                cache_stats.cache_hits++;
                 return true;
             }
 
@@ -241,12 +265,26 @@ protected:
         index = (LRU) ? index : fifo_ind[set_ind];
         assert(index < n_way);
 
+        if (!set[index].written_to) {
+            cout << " compulsory miss " << endl;
+            cache_stats.compulsory_misses++;
+        } else if (check_full()) {
+            cout << " capacity miss " << endl;
+            cache_stats.capacity_misses++;
+        } else {
+            cout << " conflict miss " << endl;
+            cache_stats.conflict_misses++;
+        }
+
+        cout << "check_full() : " << check_full() << endl;
+
         // replace this block
         if (write_back && (set[index].dirty)) {
             write_block_to_memory(set + index, addr);
         }
-
         fetch_block_from_memory(set + index, addr);
+        update_fifo(set_ind);
+
         return false;
     }
 
@@ -260,6 +298,7 @@ protected:
 
         block->tag = block->age = block->dirty = 0; // clear block info
         block->tag = (addr & tag_mask);             // put new tag
+        block->written_to = 1;
 
         addr &= (~byte_mask); // change addr to where the block starts
 

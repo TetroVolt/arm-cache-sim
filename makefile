@@ -11,5 +11,5 @@ debug:
 	gdb --args out/prog -f tracefile.trace
 
 run:
-	out/prog -f tracefile.trace
+	out/prog tracefile.trace
 
